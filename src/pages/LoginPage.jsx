@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import API from '../api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,20 +10,22 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Mock auth — replace with real API call later
-    setTimeout(() => {
-      if (email === 'admin@foodgenie.com' && password === 'admin123') {
-        navigate('/');
-      } else {
-        setError('Invalid email or password. Try admin@foodgenie.com / admin123');
-      }
+    try {
+      const response = await API.post('/api/auth/login', { email, password });
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user || { email, role: 'admin' }));
       setLoading(false);
-    }, 800);
+      navigate('/');
+    } catch (err) {
+      setLoading(false);
+      setError(err.response?.data?.detail || 'Invalid email or password');
+    }
   };
 
   return (

@@ -1,9 +1,35 @@
-﻿import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
+import API from '../api';
 
 export default function AdminDashboardDesktop() {
+    const [analytics, setAnalytics] = useState({
+        total_users: 12482,
+        total_vendors: 843,
+        total_orders: 2105,
+        total_revenue: 45290,
+        pending_orders_count: 14,
+        delivered_orders_count: 2091
+    });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            setLoading(true);
+            try {
+                const res = await API.get('/api/admin/analytics');
+                if (res.data) setAnalytics(res.data);
+            } catch (err) {
+                console.error('Failed to load admin analytics', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAnalytics();
+    }, []);
+
     return (
         <div className="text-on-surface">
 
@@ -23,7 +49,7 @@ export default function AdminDashboardDesktop() {
 <span className="material-symbols-outlined text-primary-container">groups</span>
 </div>
 <div className="mt-md">
-<h2 className="font-headline-md text-headline-md font-bold text-on-surface">12,482</h2>
+<h2 className="font-headline-md text-headline-md font-bold text-on-surface">{analytics.total_users?.toLocaleString() || 12482}</h2>
 <div className="flex items-center gap-xs mt-xs">
 <span className="material-symbols-outlined text-green-500 text-sm">trending_up</span>
 <span className="font-label-sm text-label-sm text-green-600">+12% from last month</span>
@@ -33,28 +59,28 @@ export default function AdminDashboardDesktop() {
 
 <div className="bg-surface-container-lowest p-sm card-shadow rounded-xl border-l-4 border-tertiary flex flex-col justify-between">
 <div className="flex justify-between items-start">
-<span className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase tracking-wider">Active Restaurants</span>
+<span className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase tracking-wider">Active Vendors</span>
 <span className="material-symbols-outlined text-tertiary">restaurant</span>
 </div>
 <div className="mt-md">
-<h2 className="font-headline-md text-headline-md font-bold text-on-surface">843</h2>
+<h2 className="font-headline-md text-headline-md font-bold text-on-surface">{analytics.total_vendors?.toLocaleString() || 843}</h2>
 <div className="flex items-center gap-xs mt-xs">
 <span className="material-symbols-outlined text-green-500 text-sm">trending_up</span>
-<span className="font-label-sm text-label-sm text-green-600">+4 new today</span>
+<span className="font-label-sm text-label-sm text-green-600">Active Platform Vendors</span>
 </div>
 </div>
 </div>
 
 <div className="bg-surface-container-lowest p-sm card-shadow rounded-xl border-l-4 border-secondary flex flex-col justify-between">
 <div className="flex justify-between items-start">
-<span className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase tracking-wider">Orders Today</span>
+<span className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase tracking-wider">Total Orders</span>
 <span className="material-symbols-outlined text-secondary">shopping_bag</span>
 </div>
 <div className="mt-md">
-<h2 className="font-headline-md text-headline-md font-bold text-on-surface">2,105</h2>
+<h2 className="font-headline-md text-headline-md font-bold text-on-surface">{analytics.total_orders?.toLocaleString() || 2105}</h2>
 <div className="flex items-center gap-xs mt-xs">
-<span className="material-symbols-outlined text-secondary text-sm">trending_down</span>
-<span className="font-label-sm text-label-sm text-secondary">-3% vs yesterday</span>
+<span className="material-symbols-outlined text-secondary text-sm">trending_up</span>
+<span className="font-label-sm text-label-sm text-secondary">Pending: {analytics.pending_orders_count || 0}</span>
 </div>
 </div>
 </div>
@@ -65,7 +91,7 @@ export default function AdminDashboardDesktop() {
 <span className="material-symbols-outlined text-on-secondary-fixed-variant">payments</span>
 </div>
 <div className="mt-md">
-<h2 className="font-headline-md text-headline-md font-bold text-on-surface">$45,290</h2>
+<h2 className="font-headline-md text-headline-md font-bold text-on-surface">Rs. {analytics.total_revenue?.toLocaleString() || '45,290'}</h2>
 <div className="flex items-center gap-xs mt-xs">
 <span className="material-symbols-outlined text-green-500 text-sm">trending_up</span>
 <span className="font-label-sm text-label-sm text-green-600">+22% monthly growth</span>

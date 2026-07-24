@@ -1,10 +1,38 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
 import ManagementTabs from '../components/ManagementTabs';
+import API from '../api';
 
 export default function PendingApprovalsDesktop() {
+    const [vendors, setVendors] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const fetchVendors = async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('/api/admin/vendors');
+            setVendors(res.data || []);
+        } catch (err) {
+            console.error('Failed to load vendors', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchVendors();
+    }, []);
+
+    const handleApprove = async (vendorId) => {
+        try {
+            await API.patch(`/api/admin/vendors/${vendorId}/approve`);
+            fetchVendors();
+        } catch (err) {
+            alert('Failed to approve vendor: ' + (err.response?.data?.detail || err.message));
+        }
+    };
     return (
         <div className="text-on-surface">
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
+import API from '../api';
 
 export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
     const location = useLocation();
@@ -27,7 +28,37 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
     }, [location.pathname, initialFilter]);
 
     // State for Orders
-    const [orders, setOrders] = useState([
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            setLoading(true);
+            try {
+                const res = await API.get('/api/admin/orders');
+                if (res.data && res.data.length > 0) {
+                    const mapped = res.data.map(o => ({
+                        id: `#ORD-${o.id}`,
+                        customer: `Customer #${o.customer_id}`,
+                        address: o.delivery_address || 'Vehari',
+                        restaurant: `Vendor #${o.vendor_id}`,
+                        rider: o.rider_id ? `Rider #${o.rider_id}` : 'Assigning...',
+                        riderAvatar: null,
+                        items: `${o.items?.length || 1} Item(s)`,
+                        total: o.total_amount || 0,
+                        time: new Date(o.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        status: o.status === 'out_for_delivery' ? 'Out for Delivery' : (o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Pending')
+                    }));
+                    setOrders(mapped);
+                }
+            } catch (err) {
+                console.error('Failed to load admin orders', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchOrders();
+    }, []);
         {
             id: '#ORD-9425',
             customer: 'Kev Peterson',
