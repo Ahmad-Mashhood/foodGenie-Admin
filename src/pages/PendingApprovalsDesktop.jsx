@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
 import ManagementTabs from '../components/ManagementTabs';
@@ -16,6 +15,7 @@ export default function PendingApprovalsDesktop() {
             setVendors(res.data || []);
         } catch (err) {
             console.error('Failed to load vendors', err);
+            setVendors([]);
         } finally {
             setLoading(false);
         }
@@ -33,184 +33,132 @@ export default function PendingApprovalsDesktop() {
             alert('Failed to approve vendor: ' + (err.response?.data?.detail || err.message));
         }
     };
+
+    const handleReject = async (vendorId) => {
+        try {
+            await API.patch(`/api/admin/vendors/${vendorId}/reject`);
+            fetchVendors();
+        } catch (err) {
+            alert('Failed to reject vendor: ' + (err.response?.data?.detail || err.message));
+        }
+    };
+
+    const pendingVendors = vendors.filter(v => !v.is_approved);
+    const approvedCount = vendors.filter(v => v.is_approved).length;
+
     return (
         <div className="text-on-surface">
+            <SidebarNav />
 
+            <main className="min-h-screen flex flex-col" style={{ marginLeft: '260px' }}>
+                <TopNavBar title="User & Restaurant Management" />
 
-<SidebarNav />
+                <div className="px-margin mb-lg">
+                    <ManagementTabs />
+                </div>
 
-<main className="min-h-screen flex flex-col" style={{ marginLeft: '260px' }}>
+                <div className="px-margin flex-1 pb-xl">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
+                        <div className="bg-white p-lg rounded-xl custom-shadow accent-strip border-l-[#FFB703]">
+                            <div className="flex justify-between items-start mb-sm">
+                                <p className="font-label-md text-on-surface-variant/70 uppercase tracking-wider">Pending Applications</p>
+                                <span className="material-symbols-outlined text-[#FFB703]">pending_actions</span>
+                            </div>
+                            <div className="flex items-end gap-xs">
+                                <p className="font-display-lg text-[32px] leading-none font-bold text-[#2B2D42]">{pendingVendors.length}</p>
+                            </div>
+                        </div>
 
-<TopNavBar title="User & Restaurant Management" />
+                        <div className="bg-white p-lg rounded-xl custom-shadow accent-strip border-l-emerald-500">
+                            <div className="flex justify-between items-start mb-sm">
+                                <p className="font-label-md text-on-surface-variant/70 uppercase tracking-wider">Approved Restaurants</p>
+                                <span className="material-symbols-outlined text-emerald-500">check_circle</span>
+                            </div>
+                            <div className="flex items-end gap-xs">
+                                <p className="font-display-lg text-[32px] leading-none font-bold text-[#2B2D42]">{approvedCount}</p>
+                            </div>
+                        </div>
 
-<div className="px-margin mb-lg">
-<ManagementTabs />
-</div>
+                        <div className="bg-white p-lg rounded-xl custom-shadow accent-strip border-l-[#FF6B35]">
+                            <div className="flex justify-between items-start mb-sm">
+                                <p className="font-label-md text-on-surface-variant/70 uppercase tracking-wider">Total Registered</p>
+                                <span className="material-symbols-outlined text-[#FF6B35]">storefront</span>
+                            </div>
+                            <div className="flex items-end gap-xs">
+                                <p className="font-display-lg text-[32px] leading-none font-bold text-[#2B2D42]">{vendors.length}</p>
+                            </div>
+                        </div>
+                    </div>
 
-<div className="px-margin flex-1 pb-xl">
+                    {/* Pending Vendors Cards */}
+                    <div className="mb-md flex items-center justify-between">
+                        <h2 className="font-headline-md text-headline-md text-[#2B2D42]">Pending Applications ({pendingVendors.length})</h2>
+                    </div>
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
-<div className="bg-white p-lg rounded-xl custom-shadow accent-strip border-l-[#FF6B35]">
-<div className="flex justify-between items-start mb-sm">
-<p className="font-label-md text-on-surface-variant/70 uppercase tracking-wider">Average Review Time</p>
-<span className="material-symbols-outlined text-[#FF6B35]">timer</span>
-</div>
-<div className="flex items-end gap-xs">
-<p className="font-display-lg text-[32px] leading-none font-bold text-[#2B2D42]">4.2h</p>
-<span className="font-label-sm text-emerald-600 mb-1 flex items-center"><span className="material-symbols-outlined text-[14px]">arrow_downward</span> 12%</span>
-</div>
-</div>
-<div className="bg-white p-lg rounded-xl custom-shadow accent-strip border-l-[#FFB703]">
-<div className="flex justify-between items-start mb-sm">
-<p className="font-label-md text-on-surface-variant/70 uppercase tracking-wider">Applications Today</p>
-<span className="material-symbols-outlined text-[#FFB703]">pending_actions</span>
-</div>
-<div className="flex items-end gap-xs">
-<p className="font-display-lg text-[32px] leading-none font-bold text-[#2B2D42]">24</p>
-<span className="font-label-sm text-emerald-600 mb-1 flex items-center"><span className="material-symbols-outlined text-[14px]">arrow_upward</span> 8%</span>
-</div>
-</div>
-<div className="bg-white p-lg rounded-xl custom-shadow accent-strip border-l-[#E63946]">
-<div className="flex justify-between items-start mb-sm">
-<p className="font-label-md text-on-surface-variant/70 uppercase tracking-wider">Rejection Rate</p>
-<span className="material-symbols-outlined text-[#E63946]">cancel</span>
-</div>
-<div className="flex items-end gap-xs">
-<p className="font-display-lg text-[32px] leading-none font-bold text-[#2B2D42]">15.4%</p>
-<span className="font-label-sm text-[#E63946] mb-1 flex items-center"><span className="material-symbols-outlined text-[14px]">arrow_upward</span> 2.1%</span>
-</div>
-</div>
-</div>
-
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-lg mb-xl">
-
-<div className="bg-white rounded-xl custom-shadow overflow-hidden flex flex-col border border-white hover:border-primary/20 transition-all group">
-<div className="p-lg flex gap-md">
-<div className="w-20 h-20 rounded-xl bg-[#FFB703] flex items-center justify-center shrink-0">
-<span className="material-symbols-outlined text-4xl text-white">restaurant</span>
-</div>
-<div className="flex-1">
-<div className="flex justify-between items-start">
-<div>
-<h3 className="font-headline-sm text-headline-sm text-[#2B2D42]">The Golden Wok</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Owner: Jonathan Chen</p>
-</div>
-<span className="bg-surface-container-high text-primary font-label-md px-sm py-1 rounded-full">Asian Fusion</span>
-</div>
-<div className="mt-sm flex items-center gap-md text-on-surface-variant/70 font-body-sm">
-<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> San Francisco</span>
-<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">calendar_today</span> 2 hours ago</span>
-</div>
-</div>
-</div>
-<div className="px-lg pb-md border-t border-dashed border-outline-variant/40 mt-auto">
-<details className="group/details">
-<summary className="list-none cursor-pointer py-md text-primary font-label-md flex justify-center items-center gap-2 select-none">
-                                View Application Details
-                                <span className="material-symbols-outlined transition-transform group-open/details:rotate-180">expand_more</span>
-</summary>
-<div className="pb-md grid grid-cols-3 gap-md">
-<div className="bg-surface-container-lowest p-sm rounded-lg border border-outline-variant/10">
-<p className="font-label-sm text-label-sm opacity-60 mb-1 uppercase">Documents</p>
-<div className="flex flex-col gap-1">
-<Link className="text-primary font-label-sm flex items-center gap-1 hover:underline" to="#"><span className="material-symbols-outlined text-[14px]">description</span> Business_License.pdf</Link>
-<Link className="text-primary font-label-sm flex items-center gap-1 hover:underline" to="#"><span className="material-symbols-outlined text-[14px]">description</span> Health_Cert.pdf</Link>
-</div>
-</div>
-<div className="bg-surface-container-lowest p-sm rounded-lg border border-outline-variant/10">
-<p className="font-label-sm text-label-sm opacity-60 mb-1 uppercase">Contact</p>
-<p className="font-body-sm text-body-sm">+1 (555) 012-3456</p>
-<p className="font-body-sm text-body-sm break-all">j.chen@goldenwok.com</p>
-</div>
-<div className="bg-surface-container-lowest p-sm rounded-lg border border-outline-variant/10">
-<p className="font-label-sm text-label-sm opacity-60 mb-1 uppercase">Menu Preview</p>
-<div className="flex gap-1 overflow-x-auto no-scrollbar">
-<div className="w-8 h-8 rounded bg-surface-variant shrink-0"></div>
-<div className="w-8 h-8 rounded bg-surface-variant shrink-0"></div>
-<div className="w-8 h-8 rounded bg-surface-variant shrink-0"></div>
-</div>
-</div>
-</div>
-</details>
-<div className="flex gap-md py-base">
-<button className="flex-1 bg-primary-container text-white font-label-md py-sm rounded-lg shadow-sm hover:shadow-md active:scale-[0.98] transition-all">Approve</button>
-<button className="flex-1 border-2 border-[#E63946] text-[#E63946] font-label-md py-sm rounded-lg hover:bg-[#E63946]/5 active:scale-[0.98] transition-all">Reject</button>
-</div>
-</div>
-</div>
-
-<div className="bg-white rounded-xl custom-shadow overflow-hidden flex flex-col border border-white hover:border-primary/20 transition-all group">
-<div className="p-lg flex gap-md">
-<div className="w-20 h-20 rounded-xl bg-[#FFB703] flex items-center justify-center shrink-0">
-<span className="material-symbols-outlined text-4xl text-white" style={{}}>bia</span>
-</div>
-<div className="flex-1">
-<div className="flex justify-between items-start">
-<div>
-<h3 className="font-headline-sm text-headline-sm text-[#2B2D42]">Bella Napoli Pizza</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Owner: Maria Rossini</p>
-</div>
-<span className="bg-surface-container-high text-primary font-label-md px-sm py-1 rounded-full">Italian</span>
-</div>
-<div className="mt-sm flex items-center gap-md text-on-surface-variant/70 font-body-sm">
-<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> New York</span>
-<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">calendar_today</span> 5 hours ago</span>
-</div>
-</div>
-</div>
-<div className="px-lg pb-md border-t border-dashed border-outline-variant/40 mt-auto">
-<details className="group/details">
-<summary className="list-none cursor-pointer py-md text-primary font-label-md flex justify-center items-center gap-2 select-none">
-                                View Application Details
-                                <span className="material-symbols-outlined transition-transform group-open/details:rotate-180">expand_more</span>
-</summary>
-<div className="pb-md grid grid-cols-3 gap-md">
-<div className="bg-surface-container-lowest p-sm rounded-lg border border-outline-variant/10">
-<p className="font-label-sm text-label-sm opacity-60 mb-1 uppercase">Documents</p>
-<div className="flex flex-col gap-1">
-<button className="text-primary font-label-sm flex items-center gap-1 hover:underline" to="#"><span className="material-symbols-outlined text-[14px]">description</span> EIN_Form.pdf</button>
-</div>
-</div>
-<div className="bg-surface-container-lowest p-sm rounded-lg border border-outline-variant/10">
-<p className="font-label-sm text-label-sm opacity-60 mb-1 uppercase">Contact</p>
-<p className="font-body-sm text-body-sm">+1 (555) 987-6543</p>
-<p className="font-body-sm text-body-sm break-all">contact@bellanapoli.com</p>
-</div>
-<div className="bg-surface-container-lowest p-sm rounded-lg border border-outline-variant/10">
-<p className="font-label-sm text-label-sm opacity-60 mb-1 uppercase">Menu Preview</p>
-<div className="flex gap-1 overflow-x-auto no-scrollbar">
-<div className="w-8 h-8 rounded bg-surface-variant shrink-0"></div>
-<div className="w-8 h-8 rounded bg-surface-variant shrink-0"></div>
-</div>
-</div>
-</div>
-</details>
-<div className="flex gap-md py-base">
-<button className="flex-1 bg-primary-container text-white font-label-md py-sm rounded-lg shadow-sm hover:shadow-md active:scale-[0.98] transition-all">Approve</button>
-<button className="flex-1 border-2 border-[#E63946] text-[#E63946] font-label-md py-sm rounded-lg hover:bg-[#E63946]/5 active:scale-[0.98] transition-all">Reject</button>
-</div>
-</div>
-</div>
-</div>
-
-<section className="flex flex-col items-center justify-center py-xl bg-white/40 rounded-3xl border border-dashed border-outline-variant/50 mb-xl">
-<div className="w-32 h-32 mb-lg opacity-30">
-<span className="material-symbols-outlined text-[128px] text-on-surface-variant">inbox</span>
-</div>
-<h4 className="font-headline-sm text-headline-sm text-on-surface-variant/80">No more pending approvals</h4>
-<p className="font-body-md text-body-md text-on-surface-variant/60 mt-xs">Check back later for new applications.</p>
-<button className="mt-lg flex items-center gap-xs text-primary font-label-md hover:underline">
-<span className="material-symbols-outlined text-[18px]">refresh</span> Refresh List
-                </button>
-</section>
-</div>
-</main>
-
-
-</div>
+                    {loading ? (
+                        <div className="py-12 text-center text-gray-500">
+                            <div className="w-8 h-8 border-2 border-[#FF6B35] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                            <p className="text-sm">Loading applications...</p>
+                        </div>
+                    ) : pendingVendors.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
+                            {pendingVendors.map(vendor => (
+                                <div key={vendor.id} className="bg-white rounded-xl custom-shadow overflow-hidden flex flex-col border border-white hover:border-[#FF6B35]/20 transition-all">
+                                    <div className="p-lg flex gap-md">
+                                        <div className="w-16 h-16 rounded-xl bg-[#FF6B35]/10 text-[#FF6B35] flex items-center justify-center shrink-0">
+                                            <span className="material-symbols-outlined text-3xl">storefront</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h3 className="font-headline-sm text-headline-sm text-[#2B2D42] truncate">{vendor.name}</h3>
+                                                    <p className="font-body-sm text-body-sm text-on-surface-variant">{vendor.email}</p>
+                                                </div>
+                                                <span className="bg-[#FFB703]/20 text-[#ab7500] font-label-md px-3 py-1 rounded-full text-xs font-bold uppercase">
+                                                    {vendor.category || 'Restaurant'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-sm flex items-center gap-md text-on-surface-variant/70 font-body-sm text-xs">
+                                                <span className="flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[16px]">location_on</span> {vendor.city || 'Vehari'}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[16px]">call</span> {vendor.phone || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="px-lg pb-md pt-md border-t border-dashed border-outline-variant/40 mt-auto flex gap-md">
+                                        <button
+                                            onClick={() => handleApprove(vendor.id)}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-label-md py-2.5 rounded-lg shadow-sm active:scale-[0.98] transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                            Approve Restaurant
+                                        </button>
+                                        <button
+                                            onClick={() => handleReject(vendor.id)}
+                                            className="flex-1 border-2 border-[#E63946] text-[#E63946] hover:bg-[#E63946]/10 font-label-md py-2.5 rounded-lg active:scale-[0.98] transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                            Reject
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm space-y-3">
+                            <span className="material-symbols-outlined text-5xl text-gray-300">verified</span>
+                            <h3 className="text-lg font-bold text-[#2B2D42]">No Pending Approvals</h3>
+                            <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                                All restaurant partner applications have been reviewed. New signup requests will appear here for your approval.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </main>
+        </div>
     );
 }
-
-
-
-
