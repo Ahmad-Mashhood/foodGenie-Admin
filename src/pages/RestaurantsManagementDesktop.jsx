@@ -12,7 +12,7 @@ export default function RestaurantsManagementDesktop() {
     const fetchRestaurants = async () => {
         setLoading(true);
         try {
-            const res = await API.get('/api/vendors');
+            const res = await API.get('/api/admin/vendors');
             setRestaurants(res.data || []);
         } catch (err) {
             setRestaurants([]);
@@ -30,41 +30,47 @@ export default function RestaurantsManagementDesktop() {
     const [editOwner, setEditOwner] = useState('');
     const [editCuisine, setEditCuisine] = useState('');
     const [editCity, setEditCity] = useState('');
-    
-    // Deletion Modal State
     const [deletingId, setDeletingId] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All Status');
 
-    // Actions
+    const handleApprove = async (vendorId) => {
+        try {
+            await API.patch(`/api/admin/vendors/${vendorId}/approve`);
+            fetchRestaurants();
+        } catch (err) {
+            alert('Failed to approve restaurant: ' + (err.response?.data?.detail || err.message));
+        }
+    };
+
+    const handleReject = async (vendorId) => {
+        try {
+            await API.patch(`/api/admin/vendors/${vendorId}/reject`);
+            fetchRestaurants();
+        } catch (err) {
+            alert('Failed to reject restaurant: ' + (err.response?.data?.detail || err.message));
+        }
+    };
+
     const confirmDelete = () => {
         setRestaurants(restaurants.filter(r => r.id !== deletingId));
         setDeletingId(null);
     };
 
-    const handleToggleBlock = (id) => {
-        setRestaurants(restaurants.map(r => {
-            if (r.id === id) {
-                return { ...r, status: r.status === 'Suspended' ? 'Active' : 'Suspended' };
-            }
-            return r;
-        }));
-    };
-
     const startEdit = (restaurant) => {
         setEditingRestaurant(restaurant);
-        setEditName(restaurant.name);
-        setEditOwner(restaurant.owner);
-        setEditCuisine(restaurant.cuisine);
-        setEditCity(restaurant.city);
+        setEditName(restaurant.name || '');
+        setEditOwner(restaurant.email || '');
+        setEditCuisine(restaurant.category || '');
+        setEditCity(restaurant.city || '');
     };
 
     const saveEdit = (e) => {
         e.preventDefault();
         setRestaurants(restaurants.map(r => {
             if (r.id === editingRestaurant.id) {
-                return { ...r, name: editName, owner: editOwner, cuisine: editCuisine, city: editCity };
+                return { ...r, name: editName, email: editOwner, category: editCuisine, city: editCity };
             }
             return r;
         }));
@@ -73,13 +79,24 @@ export default function RestaurantsManagementDesktop() {
 
     // Filter Logic
     const filteredRestaurants = restaurants.filter(r => {
-        const matchesSearch = r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             r.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             r.cuisine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             r.city.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = statusFilter === 'All Status' || r.status === statusFilter;
+        const name = r.name || '';
+        const email = r.email || '';
+        const category = r.category || '';
+        const city = r.city || '';
+        const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             city.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const isApproved = r.is_approved !== false;
+        const matchesStatus = statusFilter === 'All Status' ||
+                             (statusFilter === 'Active' && isApproved) ||
+                             (statusFilter === 'Pending' && !isApproved);
         return matchesSearch && matchesStatus;
     });
+
+    const activeCount = restaurants.filter(r => r.is_approved !== false).length;
+    const pendingCount = restaurants.filter(r => !r.is_approved).length;
 
     return (
         <div className="flex min-h-screen overflow-x-hidden text-[#2B2D42]">
@@ -92,42 +109,40 @@ export default function RestaurantsManagementDesktop() {
                     <ManagementTabs />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
-                        <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-primary-container flex justify-between items-center">
+                        <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-emerald-500 flex justify-between items-center">
                             <div>
-                                <p className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase mb-xs">Total Active</p>
-                                <h3 className="font-headline-md text-headline-md text-on-surface">{restaurants.filter(r => r.status === 'Active').length}</h3>
-                                <p className="text-green-600 font-label-sm text-label-sm flex items-center gap-xs mt-base">
-                                    <span className="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span>
-                                    +4 this month
+                                <p className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase mb-xs">Total Approved</p>
+                                <h3 className="font-headline-md text-headline-md text-on-surface">{activeCount}</h3>
+                                <p className="text-emerald-600 font-label-sm text-label-sm flex items-center gap-xs mt-base font-bold">
+                                    Approved & Live
                                 </p>
                             </div>
-                            <div className="w-12 h-12 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container">
-                                <span className="material-symbols-outlined" data-icon="verified">verified</span>
+                            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                <span className="material-symbols-outlined">verified</span>
                             </div>
                         </div>
 
                         <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-[#FFB703] flex justify-between items-center">
                             <div>
-                                <p className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase mb-xs">Average Rating</p>
-                                <h3 className="font-headline-md text-headline-md text-on-surface">4.8</h3>
-                                <p className="text-on-surface-variant opacity-60 font-label-sm text-label-sm mt-base">Based on 12.4k reviews</p>
+                                <p className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase mb-xs">Pending Approvals</p>
+                                <h3 className="font-headline-md text-headline-md text-on-surface">{pendingCount}</h3>
+                                <p className="text-[#FFB703] font-label-sm text-label-sm flex items-center gap-xs mt-base font-bold">
+                                    Requires Admin Review
+                                </p>
                             </div>
                             <div className="w-12 h-12 rounded-full bg-[#FFB703]/10 flex items-center justify-center text-[#FFB703]">
-                                <span className="material-symbols-outlined" data-icon="star">star</span>
+                                <span className="material-symbols-outlined">pending_actions</span>
                             </div>
                         </div>
 
-                        <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-[#E63946] flex justify-between items-center">
+                        <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-[#FF6B35] flex justify-between items-center">
                             <div>
-                                <p className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase mb-xs">Pending Approvals</p>
-                                <h3 className="font-headline-md text-headline-md text-on-surface">12</h3>
-                                <p className="text-secondary font-label-sm text-label-sm flex items-center gap-xs mt-base">
-                                    <span className="material-symbols-outlined text-[14px]" data-icon="priority_high">priority_high</span>
-                                    Requires attention
-                                </p>
+                                <p className="font-label-sm text-label-sm text-on-surface-variant opacity-60 uppercase mb-xs">Total Registered</p>
+                                <h3 className="font-headline-md text-headline-md text-on-surface">{restaurants.length}</h3>
+                                <p className="text-[#FF6B35] font-label-sm text-label-sm mt-base font-bold">Platform Restaurants</p>
                             </div>
-                            <div className="w-12 h-12 rounded-full bg-[#E63946]/10 flex items-center justify-center text-[#E63946]">
-                                <span className="material-symbols-outlined" data-icon="pending_actions">pending_actions</span>
+                            <div className="w-12 h-12 rounded-full bg-[#FF6B35]/10 flex items-center justify-center text-[#FF6B35]">
+                                <span className="material-symbols-outlined">storefront</span>
                             </div>
                         </div>
                     </div>
@@ -135,10 +150,10 @@ export default function RestaurantsManagementDesktop() {
                     <div className="flex flex-wrap items-center justify-between gap-md mb-lg">
                         <div className="flex flex-1 min-w-[300px] items-center gap-sm">
                             <div className="relative flex-1">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#2B2D42]/40" data-icon="search">search</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#2B2D42]/40">search</span>
                                 <input 
                                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#2B2D42]/10 rounded-lg focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent font-body-sm text-body-sm text-[#2B2D42] outline-none transition-all" 
-                                    placeholder="Search by restaurant name, owner, cuisine..." 
+                                    placeholder="Search by restaurant name, email, category..." 
                                     type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,20 +164,11 @@ export default function RestaurantsManagementDesktop() {
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
                             >
-                                <option>All Status</option>
-                                <option>Active</option>
-                                <option>Pending</option>
-                                <option>Suspended</option>
+                                <option value="All Status">All Status</option>
+                                <option value="Active">Approved Only</option>
+                                <option value="Pending">Pending Only</option>
                             </select>
-                            <button className="flex items-center gap-xs px-4 py-2.5 bg-white border border-[#2B2D42]/10 rounded-lg font-label-md text-label-md text-[#2B2D42] hover:bg-surface-container-low transition-colors">
-                                <span className="material-symbols-outlined" data-icon="filter_list">filter_list</span>
-                                More Filters
-                            </button>
                         </div>
-                        <button className="flex items-center gap-xs px-6 py-2.5 bg-[#FF6B35] text-white rounded-lg font-label-md text-label-md hover:opacity-90 active:scale-95 transition-all shadow-md shadow-[#FF6B35]/20">
-                            <span className="material-symbols-outlined" data-icon="add">add</span>
-                            Add New Restaurant
-                        </button>
                     </div>
 
                     <div className="bg-white rounded-xl shadow-[0px_4px_12px_rgba(43,45,66,0.05)] overflow-hidden mb-xl">
@@ -171,184 +177,89 @@ export default function RestaurantsManagementDesktop() {
                                 <thead className="bg-[#2B2D42]/5 border-b border-[#2B2D42]/10">
                                     <tr>
                                         <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Restaurant</th>
-                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Owner Name</th>
-                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Cuisine</th>
+                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Email / Contact</th>
+                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Category</th>
                                         <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">City</th>
-                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Status</th>
-                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Joined Date</th>
-                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Actions</th>
+                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Approval Status</th>
+                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#2B2D42]/5">
-                                    {filteredRestaurants.map(restaurant => (
-                                        <tr key={restaurant.id} className="hover:bg-[#FFF8F0] transition-colors group">
-                                            <td className="px-lg py-md">
-                                                <div className="flex items-center gap-sm">
-                                                    <div className="w-10 h-10 rounded-full bg-[#FFB703] flex items-center justify-center text-white font-bold">
-                                                        <span className="material-symbols-outlined" data-icon={restaurant.icon}>{restaurant.icon}</span>
-                                                    </div>
-                                                    <span className="font-label-md text-label-md text-[#2B2D42] font-semibold">{restaurant.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]">{restaurant.owner}</td>
-                                            <td className="px-lg py-md">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FF6B35]/20 text-[#FF6B35]">{restaurant.cuisine}</span>
-                                            </td>
-                                            <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]">{restaurant.city}</td>
-                                            <td className="px-lg py-md">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                                    restaurant.status === 'Active' ? 'bg-emerald-100 text-emerald-800' :
-                                                    restaurant.status === 'Pending' ? 'bg-amber-100 text-amber-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                    {restaurant.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]">{restaurant.joinedDate}</td>
-                                            <td className="px-lg py-md">
-                                                <div className="flex items-center gap-md">
-                                                    <button onClick={() => startEdit(restaurant)} className="text-[#FF6B35] hover:opacity-70" title="Edit">
-                                                        <span className="material-symbols-outlined">edit</span>
-                                                    </button>
-                                                    <button onClick={() => handleToggleBlock(restaurant.id)} className="text-[#2B2D42]/60 hover:text-[#2B2D42]" title={restaurant.status === 'Suspended' ? 'Unsuspend' : 'Suspend'}>
-                                                        <span className="material-symbols-outlined">
-                                                            {restaurant.status === 'Active' ? 'check_circle' : 
-                                                                restaurant.status === 'Pending' ? 'do_not_disturb' : 
-                                                                'block'}
-                                                        </span>
-                                                    </button>
-                                                    <button onClick={() => setDeletingId(restaurant.id)} className="text-[#E63946] hover:opacity-70" title="Delete">
-                                                        <span className="material-symbols-outlined">delete</span>
-                                                    </button>
-                                                </div>
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan="6" className="px-lg py-xl text-center text-gray-500">
+                                                Loading restaurants...
                                             </td>
                                         </tr>
-                                    ))}
-                                    {filteredRestaurants.length === 0 && (
+                                    ) : filteredRestaurants.map(restaurant => {
+                                        const isApproved = restaurant.is_approved !== false;
+                                        return (
+                                            <tr key={restaurant.id} className="hover:bg-[#FFF8F0] transition-colors group">
+                                                <td className="px-lg py-md">
+                                                    <div className="flex items-center gap-sm">
+                                                        <div className="w-10 h-10 rounded-full bg-[#FF6B35]/15 text-[#FF6B35] flex items-center justify-center font-bold">
+                                                            <span className="material-symbols-outlined">storefront</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-label-md text-label-md text-[#2B2D42] font-bold block">{restaurant.name}</span>
+                                                            <span className="text-xs text-gray-400">ID #{restaurant.id}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]">
+                                                    <p className="font-medium">{restaurant.email}</p>
+                                                    <p className="text-xs text-gray-500">{restaurant.phone || 'N/A'}</p>
+                                                </td>
+                                                <td className="px-lg py-md">
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FF6B35]/10 text-[#FF6B35]">
+                                                        {restaurant.category || 'Restaurant'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]">{restaurant.city || 'Vehari'}</td>
+                                                <td className="px-lg py-md">
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold ${
+                                                        isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                                    }`}>
+                                                        {isApproved ? 'Approved' : 'Pending Approval'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-lg py-md text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {!isApproved ? (
+                                                            <button
+                                                                onClick={() => handleApprove(restaurant.id)}
+                                                                className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center gap-1"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                                                Approve
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleReject(restaurant.id)}
+                                                                className="px-3 py-1 border border-red-500 text-red-500 rounded-lg text-xs font-bold hover:bg-red-50 transition-all cursor-pointer flex items-center gap-1"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[14px]">cancel</span>
+                                                                Revoke Approval
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {!loading && filteredRestaurants.length === 0 && (
                                         <tr>
-                                            <td colSpan="7" className="px-lg py-xl text-center font-body-md text-[#2B2D42]/60">
-                                                No restaurants found matching filters.
+                                            <td colSpan="6" className="px-lg py-xl text-center font-body-md text-[#2B2D42]/60">
+                                                No restaurants found.
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
-
-                            <div className="px-lg py-md bg-white border-t border-[#2B2D42]/10 flex items-center justify-between">
-                                <p className="font-body-sm text-body-sm text-[#2B2D42]/60">
-                                    Showing 1 to {filteredRestaurants.length} of {restaurants.length} restaurants
-                                </p>
-                                <div className="flex items-center gap-base">
-                                    <button className="w-8 h-8 flex items-center justify-center rounded border border-[#2B2D42]/10 text-[#2B2D42]/40 hover:bg-[#FFF8F0]" disabled><span className="material-symbols-outlined text-[18px]">chevron_left</span></button>
-                                    <button className="w-8 h-8 flex items-center justify-center rounded bg-[#FF6B35] text-white font-label-md">1</button>
-                                    <button className="w-8 h-8 flex items-center justify-center rounded border border-[#2B2D42]/10 text-[#2B2D42]/60 hover:bg-[#FFF8F0] font-label-md">2</button>
-                                    <span className="px-1 text-[#2B2D42]/40">...</span>
-                                    <button className="w-8 h-8 flex items-center justify-center rounded border border-[#2B2D42]/10 text-[#2B2D42]/60 hover:bg-[#FFF8F0] font-label-md">6</button>
-                                    <button className="w-8 h-8 flex items-center justify-center rounded border border-[#2B2D42]/10 text-[#2B2D42]/40 hover:bg-[#FFF8F0]"><span className="material-symbols-outlined text-[18px]">chevron_right</span></button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
             </main>
-
-            {/* Premium Edit Modal overlay */}
-            {editingRestaurant && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl p-lg w-full max-w-md border border-[#2B2D42]/10 transition-all">
-                        <div className="flex justify-between items-center mb-md border-b border-[#2B2D42]/10 pb-sm">
-                            <h3 className="font-headline-sm text-headline-sm text-[#2B2D42]">Edit Restaurant</h3>
-                            <button onClick={() => setEditingRestaurant(null)} className="text-[#2B2D42]/60 hover:text-[#2B2D42]">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <form onSubmit={saveEdit} className="space-y-md">
-                            <div>
-                                <label className="block font-label-sm text-label-sm text-[#2B2D42]/70 mb-xs">Restaurant Name</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full px-md py-sm bg-white border border-[#2B2D42]/20 rounded-lg focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none font-body-sm text-[#2B2D42]"
-                                    value={editName}
-                                    onChange={(e) => setEditName(e.target.value)}
-                                    required 
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-label-sm text-label-sm text-[#2B2D42]/70 mb-xs">Owner Name</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full px-md py-sm bg-white border border-[#2B2D42]/20 rounded-lg focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none font-body-sm text-[#2B2D42]"
-                                    value={editOwner}
-                                    onChange={(e) => setEditOwner(e.target.value)}
-                                    required 
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-label-sm text-label-sm text-[#2B2D42]/70 mb-xs">Cuisine</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full px-md py-sm bg-white border border-[#2B2D42]/20 rounded-lg focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none font-body-sm text-[#2B2D42]"
-                                    value={editCuisine}
-                                    onChange={(e) => setEditCuisine(e.target.value)}
-                                    required 
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-label-sm text-label-sm text-[#2B2D42]/70 mb-xs">City</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full px-md py-sm bg-white border border-[#2B2D42]/20 rounded-lg focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none font-body-sm text-[#2B2D42]"
-                                    value={editCity}
-                                    onChange={(e) => setEditCity(e.target.value)}
-                                    required 
-                                />
-                            </div>
-                            <div className="flex justify-end gap-sm pt-sm border-t border-[#2B2D42]/10">
-                                <button 
-                                    type="button" 
-                                    onClick={() => setEditingRestaurant(null)} 
-                                    className="px-md py-sm rounded-lg border border-[#2B2D42]/20 text-[#2B2D42] font-label-md hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    className="px-md py-sm rounded-lg bg-[#FF6B35] text-white font-label-md hover:opacity-90 active:scale-95 transition-all shadow-md shadow-[#FF6B35]/20"
-                                >
-                                    Save Changes
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Premium Custom Deletion Modal */}
-            {deletingId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl p-lg w-full max-w-sm border border-[#2B2D42]/10 text-center">
-                        <span className="material-symbols-outlined text-[#E63946] text-5xl mb-sm">warning</span>
-                        <h3 className="font-headline-sm text-headline-sm text-[#2B2D42] mb-xs">Confirm Delete</h3>
-                        <p className="font-body-sm text-body-sm text-[#2B2D42]/70 mb-md">
-                            Are you sure you want to delete this restaurant? This action cannot be undone.
-                        </p>
-                        <div className="flex justify-center gap-sm">
-                            <button 
-                                onClick={() => setDeletingId(null)} 
-                                className="px-md py-sm rounded-lg border border-[#2B2D42]/20 text-[#2B2D42] font-label-md hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={confirmDelete} 
-                                className="px-md py-sm rounded-lg bg-[#E63946] text-white font-label-md hover:opacity-90 active:scale-95 transition-all shadow-md"
-                            >
-                                Yes, Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
