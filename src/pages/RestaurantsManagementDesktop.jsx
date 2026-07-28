@@ -1,42 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
 import ManagementTabs from '../components/ManagementTabs';
+import API from '../api';
 
 export default function RestaurantsManagementDesktop() {
-    const [restaurants, setRestaurants] = useState([
-        {
-            id: 1,
-            name: 'Burger Haven',
-            owner: 'John Mitchell',
-            cuisine: 'American',
-            city: 'New York',
-            status: 'Active',
-            joinedDate: 'Oct 12, 2023',
-            icon: 'restaurant_menu'
-        },
-        {
-            id: 2,
-            name: 'Sushi Zen',
-            owner: 'Akiro Tanaka',
-            cuisine: 'Japanese',
-            city: 'Los Angeles',
-            status: 'Pending',
-            joinedDate: 'Nov 05, 2023',
-            icon: 'ramen_dining'
-        },
-        {
-            id: 3,
-            name: 'Pizza Palace',
-            owner: 'Marco Rossi',
-            cuisine: 'Italian',
-            city: 'Chicago',
-            status: 'Suspended',
-            joinedDate: 'Sep 28, 2023',
-            icon: 'local_pizza'
+    const [restaurants, setRestaurants] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchRestaurants = async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('/api/vendors');
+            setRestaurants(res.data || []);
+        } catch (err) {
+            setRestaurants([]);
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
+
+    useEffect(() => {
+        fetchRestaurants();
+    }, []);
 
     const [editingRestaurant, setEditingRestaurant] = useState(null);
     const [editName, setEditName] = useState('');

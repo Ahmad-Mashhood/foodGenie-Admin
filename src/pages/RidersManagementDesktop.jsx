@@ -1,57 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
 import ManagementTabs from '../components/ManagementTabs';
+import API from '../api';
 
 export default function RidersManagementDesktop() {
-    const [riders, setRiders] = useState([
-        {
-            id: 1,
-            name: 'Marcus Thompson',
-            email: 'marcus.t@genie.com',
-            phone: '+1 (555) 012-3456',
-            status: 'Active',
-            joinedDate: 'Oct 12, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCain-XHkJ8AQ1bTS_w4ydh7bNStQ7em4S0TiBz3kW4S47WD7duE6YMm7QzDU4AnmEozJU5HVNeSWjbzNJaE8N9cILMvkeRO0T3rCDFeON2D49_ZF46DpKmqoA_-tKzbMZ52JcWfPjRyQcoGBr7V_2jtd83g3Z2-sZNs16Rse7YaoRnVm-tq9clkxr2z_PvfxILV265hkzeDgmkgfsSm-eHH9d_7euInl6R1X-RgswnAP61ElInB3hMTzoHRlq26cfyPdU8RMwJlt7R'
-        },
-        {
-            id: 2,
-            name: 'Elena Rodriguez',
-            email: 'elena.rod@genie.com',
-            phone: '+1 (555) 012-7890',
-            status: 'On Delivery',
-            joinedDate: 'Nov 05, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBUDR1lvtSacW5JW-0iuPmba0gw9zm8qC0Vnz3mxHOuekg0n81HE7j-D75RnzagkPjaTwosypn6me0NEupni8HUhG2CV9_Ii1D8rT_RzRsFV9q-8P5UqUNnwXDPINBQW9O94iVf885wAvF2_darw-_qycnU47QLK9ljgFJINMC6YAL95j2V7UTjvt1ncuUlSN9QdhWiWK_bi7OM1--0CJJO6JDo4VSnztWKMuMMEPzmT3CI1EQTUHgYaL5K8tX-mzhELDCyQhs9hqdu'
-        },
-        {
-            id: 3,
-            name: 'Simon Vance',
-            email: 'simon.v@genie.com',
-            phone: '+1 (555) 012-5566',
-            status: 'Suspended',
-            joinedDate: 'Aug 22, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDcA0DIBxFNDce7UcioeLBp8YoBLrFybl4CR7h6uu2KyKelz7iIKWxgt0UwYTywNmcsWC0__QTipcCoud3WnxjRzR-oegXP8y_7nJOp7GpMC1bRuAop1OoKbocqfFF1OXCrC67bP_wQYF1PaJq3SQJL9sCUOjMmav8wpEFnjK4i3h8zLMKMG8HB5u9GXTgWThpptaWk-eIadOBenuaOsBfeY_TUzY-JGZm1VghbYm8PPRtMCyFifvRvyT5mJiGCZN6YeMAbaYhe2f_N'
-        },
-        {
-            id: 4,
-            name: 'David Chen',
-            email: 'd.chen@genie.com',
-            phone: '+1 (555) 012-9988',
-            status: 'Active',
-            joinedDate: 'Dec 01, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB1btEePT3kdn_emVlQSlA74emXPuij6P2Cmv6hooeCRBgWHCojLkFfGADqNGoMoCulNZck6heR8M0m6X_79ketguY1CzG3gXpjzw1hEni-9JNVWy7j34C9IJK2Qosnog23xBeWZOxSb9hE5NtPHHZSd5UO5QBO1jfOcQkjcqd5Y6OhSC2yQJoy302hAOTtTQhrL6mu_Sjdu22cncF-cuVjxpy91u8d7dpu0jnDaZSLZbIl92M0nxPXswtL87p7fHsrqYqW_vB2y6Zg'
-        },
-        {
-            id: 5,
-            name: 'Sarah Jenkins',
-            email: 'sarah.j@genie.com',
-            phone: '+1 (555) 012-1122',
-            status: 'On Delivery',
-            joinedDate: 'Jan 15, 2024',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDgjMKf3VPY_bMwn0Ev5Jthntzfj35LeHI_-jbXQIcYKsExf0chp4MCdk_FUxBSRsG2yg096yXzZ_CZiTY_i_YyrLHFMB_GJd_guLzxTDrRBrmwJgFCf0pH8P57rp_ImG66HWY-hvGA9AFWZfuDUnflF7v92fNm9W-UOFHIqDOYGxsySJHLV8QInZsK5N7gLS5haoBktUdkykjuR2bB4dgOT6S3Q8ZJVIYMnlYSpBq1vLc0w5V-3aOG75PjRRsxm3fMqErPvyf86GER'
+    const [riders, setRiders] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchRiders = async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('/api/riders');
+            setRiders(res.data || []);
+        } catch (err) {
+            setRiders([]);
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
+
+    useEffect(() => {
+        fetchRiders();
+    }, []);
 
     const [editingRider, setEditingRider] = useState(null);
     const [editName, setEditName] = useState('');
