@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
+import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -169,12 +171,21 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-            <label
-              htmlFor="password"
-              style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.813rem', marginBottom: '0.5rem', fontWeight: '500' }}
-            >
-              Password
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label
+                htmlFor="password"
+                style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.813rem', fontWeight: '500' }}
+              >
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsForgotOpen(true)}
+                style={{ background: 'none', border: 'none', color: '#ff8c38', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Forgot Password?
+              </button>
+            </div>
             <div style={{ position: 'relative' }}>
               <span
                 className="material-symbols-outlined"
@@ -325,6 +336,11 @@ export default function LoginPage() {
         </p>
       </div>
 
+      <ForgotPasswordModal
+        isOpen={isForgotOpen}
+        onClose={() => setIsForgotOpen(false)}
+      />
+
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -334,3 +350,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
