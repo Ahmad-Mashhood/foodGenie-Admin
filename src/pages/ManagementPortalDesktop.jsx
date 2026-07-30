@@ -1,64 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
 import ManagementTabs from '../components/ManagementTabs';
+import API from '../api';
 
 export default function ManagementPortalDesktop() {
-    const [customers, setCustomers] = useState([
-        {
-            id: 1,
-            name: 'James Wilson',
-            email: 'james.wilson@email.com',
-            status: 'Active',
-            joinedDate: 'Oct 12, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAzZEWEqbVKohv4ydWLYMD_n5PI2cUZzQXBiqo_33diQSui2aSt7c_9il_Bwb7yikn32IAGoJe_OOrwHY8kZW--aqej4S-F_xK8yEGmcun-9PdQlRLeCmkdOZeTWdZzs3kZIKqmDqHwiUVUhTSBA0KCLFw4d0DzbByxv3oNafuxLl843qGVQ6o-u6_dCrSFsd_dnAF-p-hCXL7FAT5zQTsgNfL500XBZDuNo49sclzHfWeF5JSRMw1J5_3APKroJwGHVgjVEYlQtoGL'
-        },
-        {
-            id: 2,
-            name: 'Sarah Chen',
-            email: 's.chen@techmail.io',
-            status: 'Suspended',
-            joinedDate: 'Nov 05, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBSm6IMSnrxO7L0xbLdmpLwXpbojEVaOwqeARJ5IFeP2PE1am57ZnPJQeFd7U2LsrTNfrXO22kWEkNCukpPJ2ztk5tPcwptU7-fikvEJSoJeFc0j4M0_kiDZAx4R2GTjWEoJFux5kK_rDKU94Bf567sisJneEsxpOdCg2Xhqt8NMUTLriss9FnKgmT6mZlST3a-4F-5vwLu9XVJQHyKsC7R9HWQ5nnLEXmLKJTt90FS-otJ6e7pOdAYiF6JfQ1-cxLXZlSt8qDmtpGp'
-        },
-        {
-            id: 3,
-            name: 'Marcus Rodriguez',
-            email: 'marcus.r@delivery.com',
-            status: 'Active',
-            joinedDate: 'Dec 01, 2023',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDBm0VNI50XWIkSWOfaydPeGcHfXIKZChodK6v_JhPaqaSbPxOHoGxaEEtC4NF-LWXR001LLxvHk5lS8H1Qr-dgmmPU2NaGj4nUNh5Z65xK9b4ZldnRUN1XpQBJ9V_BkJ3nF6BqkDcD-Z6eVrv2Uqj8NqNBQWJt7JtK9rD3H1WGar0uXU44GyJcsU1iWTpDcBdilIZKcpKenWyc7UvDLmeRcDiX1YbDJrbB9QzAP38EDfK6ySpkMUZCFfoVePk8CaeCbOTRzMrZCDCe'
-        },
-        {
-            id: 4,
-            name: 'Priya Gupta',
-            email: 'priya.g@service.net',
-            status: 'Active',
-            joinedDate: 'Jan 14, 2024',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDVnk_U88ERq0m0-gG09Du6JAksM2D13fCy_VIUQcQ_42n79YN9ymMdAsJX5HtisfGVxVj5N77o55ckdHzniy4L9EP1pNiraz3vIIM_UEcAhXhqD-wB580FBzvnVr2_arnWmxyA_hmgvRCFWkLkPKUkvBQ68dlwvoMUuWUkr60CZh4cGHBpO9IQk3QlYneBP8UUmfu-b1cpHihkekPfhMe79IxmMRY-P8BOHsHA6f8EBr21c3tq6JaNzONxyMvK76SaqFvoZgblwrGU'
-        },
-        {
-            id: 5,
-            name: 'David Miller',
-            email: 'dmiller@web.com',
-            status: 'Active',
-            joinedDate: 'Feb 20, 2024',
-            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDOWToy_JptququksIkIdtcbOL-iEvb8IT5rARIjHDZcaVRQsYiMbgZuQugf9NCsLgQukE-fMQ2Aa9JjoOEGh7wtL23JZt2_VzL4w81BrCDfwDT7oCPulgdwX7-1FW3nyH61hdgESN6gC2kzI5E5d2-GyY69UqBqZe_6uSs_xfB6ziqbWK4fPE4fiNRFuatAA1PK94lY4yKxpGn8VTvhYkMJt1fvAAvnad5MczVwRBHPLbhZ_CL8yZ_rzhoaFPn4zHVPRNX1YobISt1'
+    const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('/api/admin/users');
+            if (res.data) {
+                const customerList = res.data.map(u => ({
+                    id: u.id,
+                    name: u.name || 'Customer',
+                    email: u.email,
+                    phone: u.phone || 'N/A',
+                    status: 'Active',
+                    joinedDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Recent'
+                }));
+                setCustomers(customerList);
+            }
+        } catch (err) {
+            console.error('Failed to fetch users:', err);
+            setCustomers([]);
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [editName, setEditName] = useState('');
     const [editEmail, setEditEmail] = useState('');
-    
-    // Custom Premium Deletion Modal State
     const [deletingId, setDeletingId] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All Status');
 
-    // Actions
     const confirmDelete = () => {
         setCustomers(customers.filter(c => c.id !== deletingId));
         setDeletingId(null);
@@ -90,7 +75,6 @@ export default function ManagementPortalDesktop() {
         setEditingCustomer(null);
     };
 
-    // Filters logic
     const filteredCustomers = customers.filter(c => {
         const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                              c.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -111,47 +95,37 @@ export default function ManagementPortalDesktop() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
                         <div className="bg-white p-lg rounded-card shadow-[0px_4px_12px_rgba(43,45,66,0.05)] border-l-4 border-primary relative overflow-hidden group">
                             <div className="flex items-center justify-between mb-sm">
-                                <span className="font-label-md text-label-md text-on-surface-variant opacity-70">Total Customers</span>
+                                <span className="font-label-md text-label-md text-on-surface-variant opacity-70">Registered Customers</span>
                                 <span className="material-symbols-outlined text-primary-container">groups</span>
                             </div>
                             <div className="flex items-end gap-xs">
                                 <h2 className="font-headline-lg text-headline-lg text-on-surface">{customers.length}</h2>
-                                <span className="font-label-sm text-label-sm text-tertiary mb-1 flex items-center">
-                                    <span className="material-symbols-outlined text-[16px]">arrow_upward</span> 12%
+                                <span className="font-label-sm text-label-sm text-tertiary mb-1 flex items-center font-bold">
+                                    Live Customers
                                 </span>
                             </div>
-                            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
-                                <span className="material-symbols-outlined text-[120px]">groups</span>
-                            </div>
                         </div>
+
                         <div className="bg-white p-lg rounded-card shadow-[0px_4px_12px_rgba(43,45,66,0.05)] border-l-4 border-tertiary relative overflow-hidden group">
                             <div className="flex items-center justify-between mb-sm">
-                                <span className="font-label-md text-label-md text-on-surface-variant opacity-70">Active Riders</span>
-                                <span className="material-symbols-outlined text-tertiary">directions_bike</span>
+                                <span className="font-label-md text-label-md text-on-surface-variant opacity-70">Active Accounts</span>
+                                <span className="material-symbols-outlined text-tertiary">check_circle</span>
                             </div>
                             <div className="flex items-end gap-xs">
-                                <h2 className="font-headline-lg text-headline-lg text-on-surface">458</h2>
-                                <span className="font-label-sm text-label-sm text-tertiary mb-1 flex items-center">
-                                    <span className="material-symbols-outlined text-[16px]">arrow_upward</span> 5.2%
+                                <h2 className="font-headline-lg text-headline-lg text-on-surface">{customers.filter(c => c.status === 'Active').length}</h2>
+                                <span className="font-label-sm text-label-sm text-tertiary mb-1 flex items-center font-bold">
+                                    Verified
                                 </span>
-                            </div>
-                            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
-                                <span className="material-symbols-outlined text-[120px]">directions_bike</span>
                             </div>
                         </div>
+
                         <div className="bg-white p-lg rounded-card shadow-[0px_4px_12px_rgba(43,45,66,0.05)] border-l-4 border-secondary relative overflow-hidden group">
                             <div className="flex items-center justify-between mb-sm">
-                                <span className="font-label-md text-label-md text-on-surface-variant opacity-70">Avg. Restaurant Rating</span>
-                                <span className="material-symbols-outlined text-secondary">star</span>
+                                <span className="font-label-md text-label-md text-on-surface-variant opacity-70">Account Type</span>
+                                <span className="material-symbols-outlined text-secondary">badge</span>
                             </div>
                             <div className="flex items-end gap-xs">
-                                <h2 className="font-headline-lg text-headline-lg text-on-surface">4.8</h2>
-                                <span className="font-label-sm text-label-sm text-secondary-container mb-1 flex items-center">
-                                    <span className="material-symbols-outlined text-[16px]">remove</span> stable
-                                </span>
-                            </div>
-                            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
-                                <span className="material-symbols-outlined text-[120px]">star</span>
+                                <h2 className="font-headline-lg text-headline-lg text-on-surface">Customers</h2>
                             </div>
                         </div>
                     </div>
@@ -159,28 +133,15 @@ export default function ManagementPortalDesktop() {
                     <div className="flex flex-wrap items-center justify-between gap-md mb-lg">
                         <div className="flex flex-1 min-w-[300px] items-center gap-sm">
                             <div className="relative flex-1">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#2B2D42]/40" data-icon="search">search</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#2B2D42]/40">search</span>
                                 <input 
                                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#2B2D42]/10 rounded-lg focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent font-body-sm text-body-sm text-[#2B2D42] outline-none transition-all" 
-                                    placeholder="Search by name, email..." 
+                                    placeholder="Search by customer name, email..." 
                                     type="text" 
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
-                            <select 
-                                className="bg-white border border-[#2B2D42]/10 rounded-lg px-4 py-2.5 font-label-md text-label-md text-[#2B2D42] focus:ring-[#FF6B35] outline-none"
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option>All Status</option>
-                                <option>Active</option>
-                                <option>Suspended</option>
-                            </select>
-                            <button className="flex items-center gap-xs px-4 py-2.5 bg-white border border-[#2B2D42]/10 rounded-lg font-label-md text-label-md text-[#2B2D42] hover:bg-surface-container-low transition-colors">
-                                <span className="material-symbols-outlined" data-icon="filter_list">filter_list</span>
-                                More Filters
-                            </button>
                         </div>
                     </div>
 
@@ -190,23 +151,33 @@ export default function ManagementPortalDesktop() {
                                 <thead className="bg-[#2B2D42]/5 border-b border-[#2B2D42]/10">
                                     <tr>
                                         <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Customer Details</th>
+                                        <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Phone</th>
                                         <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Status</th>
                                         <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Joined Date</th>
                                         <th className="px-lg py-md font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#2B2D42]/5">
-                                    {filteredCustomers.map(customer => (
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan="5" className="px-lg py-xl text-center text-gray-500">
+                                                Loading customers...
+                                            </td>
+                                        </tr>
+                                    ) : filteredCustomers.map(customer => (
                                         <tr key={customer.id} className="hover:bg-[#FFF8F0] transition-colors group">
                                             <td className="px-lg py-md">
                                                 <div className="flex items-center gap-sm">
-                                                    <img className="w-10 h-10 rounded-full object-cover" src={customer.avatar} alt={customer.name} />
+                                                    <div className="w-10 h-10 rounded-full bg-[#FF6B35]/10 text-[#FF6B35] flex items-center justify-center font-bold">
+                                                        <span className="material-symbols-outlined">person</span>
+                                                    </div>
                                                     <div>
-                                                        <p className="font-label-md text-label-md text-[#2B2D42]">{customer.name}</p>
+                                                        <p className="font-label-md text-label-md text-[#2B2D42] font-bold">{customer.name}</p>
                                                         <p className="font-body-sm text-body-sm text-[#2B2D42]/60">{customer.email}</p>
                                                     </div>
                                                 </div>
                                             </td>
+                                            <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]">{customer.phone}</td>
                                             <td className="px-lg py-md">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${customer.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
                                                     {customer.status}
@@ -230,10 +201,10 @@ export default function ManagementPortalDesktop() {
                                             </td>
                                         </tr>
                                     ))}
-                                    {filteredCustomers.length === 0 && (
+                                    {!loading && filteredCustomers.length === 0 && (
                                         <tr>
-                                            <td colSpan="4" className="px-lg py-xl text-center font-body-md text-[#2B2D42]/60">
-                                                No customers found matching filters.
+                                            <td colSpan="5" className="px-lg py-xl text-center font-body-md text-[#2B2D42]/60">
+                                                No registered customers found.
                                             </td>
                                         </tr>
                                     )}
@@ -241,31 +212,12 @@ export default function ManagementPortalDesktop() {
                             </table>
                         </div>
                     </div>
-
-                    <div className="px-lg py-md bg-surface-container-low/30 border-t border-surface-container flex flex-col sm:flex-row items-center justify-between gap-md">
-                        <span className="font-body-sm text-body-sm text-on-surface-variant">
-                            Showing 1 to <span className="font-bold text-on-surface">{filteredCustomers.length}</span> of <span className="font-bold text-on-surface">{customers.length}</span> customers
-                        </span>
-                        <div className="flex items-center gap-xs">
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-outline hover:bg-surface-container-low transition-colors disabled:opacity-30" disabled>
-                                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                            </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white font-label-sm text-label-sm shadow-sm">1</button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">2</button>
-                            <span className="px-1 text-outline">...</span>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">9</button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors">
-                                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </main>
 
-            {/* Premium Edit Modal overlay */}
             {editingCustomer && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl p-lg w-full max-w-md border border-[#2B2D42]/10 transition-all transform scale-100">
+                    <div className="bg-white rounded-xl shadow-2xl p-lg w-full max-w-md border border-[#2B2D42]/10 transition-all">
                         <div className="flex justify-between items-center mb-md border-b border-[#2B2D42]/10 pb-sm">
                             <h3 className="font-headline-sm text-headline-sm text-[#2B2D42]">Edit Customer Details</h3>
                             <button onClick={() => setEditingCustomer(null)} className="text-[#2B2D42]/60 hover:text-[#2B2D42]">
@@ -313,7 +265,6 @@ export default function ManagementPortalDesktop() {
                 </div>
             )}
 
-            {/* Premium Custom Deletion Modal */}
             {deletingId && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-xl shadow-2xl p-lg w-full max-w-sm border border-[#2B2D42]/10 text-center">

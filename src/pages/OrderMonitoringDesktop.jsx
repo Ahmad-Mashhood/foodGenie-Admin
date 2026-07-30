@@ -36,13 +36,13 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
             setLoading(true);
             try {
                 const res = await API.get('/api/admin/orders');
-                if (res.data && res.data.length > 0) {
+                if (res.data) {
                     const mapped = res.data.map(o => ({
                         id: `#ORD-${o.id}`,
-                        customer: `Customer #${o.customer_id}`,
+                        customer: o.customer?.name || o.delivery_name || `Customer #${o.customer_id}`,
                         address: o.delivery_address || 'Vehari',
-                        restaurant: `Vendor #${o.vendor_id}`,
-                        rider: o.rider_id ? `Rider #${o.rider_id}` : 'Assigning...',
+                        restaurant: o.vendor?.name || `Vendor #${o.vendor_id}`,
+                        rider: o.rider?.name || (o.rider_id ? `Rider #${o.rider_id}` : 'Assigning...'),
                         riderAvatar: null,
                         items: `${o.items?.length || 1} Item(s)`,
                         total: o.total_amount || 0,
@@ -53,6 +53,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                 }
             } catch (err) {
                 console.error('Failed to load admin orders', err);
+                setOrders([]);
             } finally {
                 setLoading(false);
             }
