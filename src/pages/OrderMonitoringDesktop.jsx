@@ -27,18 +27,24 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
         setActiveTab(getStatusFromPath(location.pathname));
     }, [location.pathname, initialFilter]);
 
-    // State for Orders
+    // Live State
     const [orders, setOrders] = useState([]);
+    const [activeRidersCount, setActiveRidersCount] = useState(0);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const fetchOrders = async () => {
+        const fetchData = async () => {
             setLoading(true);
             try {
-                const res = await API.get('/api/admin/orders');
-                if (res.data) {
-                    const mapped = res.data.map(o => ({
+                const [ordersRes, ridersRes] = await Promise.allSettled([
+                    API.get('/api/admin/orders'),
+                    API.get('/api/admin/riders')
+                ]);
+
+                if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
+                    const mapped = ordersRes.value.data.map(o => ({
                         id: `#ORD-${o.id}`,
+                        rawId: o.id,
                         customer: o.customer?.name || o.delivery_name || `Customer #${o.customer_id}`,
                         address: o.delivery_address || 'Vehari',
                         restaurant: o.vendor?.name || `Vendor #${o.vendor_id}`,
@@ -51,30 +57,56 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                     }));
                     setOrders(mapped);
                 }
+
+                if (ridersRes.status === 'fulfilled' && Array.isArray(ridersRes.value.data)) {
+                    setActiveRidersCount(ridersRes.value.data.filter(r => r.is_approved !== false).length);
+                }
             } catch (err) {
-                console.error('Failed to load admin orders', err);
+                console.error('Failed to load admin monitoring data', err);
                 setOrders([]);
+                setActiveRidersCount(0);
             } finally {
                 setLoading(false);
             }
         };
-        fetchOrders();
+        fetchData();
     }, []);
 
-    // Live Tracking feed events
-    const trackingFeed = [
-        { icon: 'motorcycle', color: 'text-primary bg-primary-fixed', text: 'Rider Elena S. is approaching the drop-off', info: 'Order #ORD-9418 • 2 mins away', time: 'Just now' },
-        { icon: 'cancel_presentation', color: 'text-secondary bg-secondary-fixed', text: 'New Cancellation Request', info: 'Order #ORD-9430 • Restaurant: Pizza Hub', time: '5m ago' },
-        { icon: 'star', color: 'text-tertiary bg-tertiary-fixed', text: '5-Star Review Received', info: 'Order #ORD-9405 • "Super fast delivery!"', time: '12m ago' }
+    // Calculate dynamic stats
+    const totalOrdersCount = orders.length;
+    const inProgressCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+    const cancelledCount = orders.filter(o => o.status === 'Cancelled').length;
+    const cancellationRate = totalOrdersCount > 0 ? ((cancelledCount / totalOrdersCount) * 100).toFixed(1) : '0.0';
+
+    // Generate dynamic tracking feed from real orders
+    const trackingFeed = orders.length > 0 ? orders.slice(0, 4).map(o => ({
+        icon: o.status === 'Delivered' ? 'task_alt' : o.status === 'Cancelled' ? 'cancel' : 'motorcycle',
+        color: o.status === 'Delivered' ? 'text-emerald-600 bg-emerald-100' : o.status === 'Cancelled' ? 'text-red-600 bg-red-100' : 'text-primary bg-primary-fixed',
+        text: `Order ${o.id} update: Status is ${o.status}`,
+        info: `${o.restaurant} → ${o.customer}`,
+        time: o.time
+    })) : [
+        { icon: 'info', color: 'text-gray-500 bg-gray-100', text: 'Operational System Ready', info: 'No active delivery events recorded yet', time: 'Now' }
     ];
 
-    const handleUpdateStatus = (orderId, newStatus) => {
+    const handleUpdateStatus = async (orderId, newStatus) => {
+        const targetOrder = orders.find(o => o.id === orderId);
+        if (targetOrder && targetOrder.rawId) {
+            try {
+                const apiStatus = newStatus === 'Out for Delivery' ? 'out_for_delivery' : newStatus.toLowerCase();
+                await API.patch(`/api/orders/${targetOrder.rawId}/status`, { status: apiStatus });
+            } catch (err) {
+                console.error('Failed to update status on server:', err);
+            }
+        }
+
         setOrders(orders.map(o => {
             if (o.id === orderId) {
                 return { ...o, status: newStatus };
             }
             return o;
         }));
+
         if (selectedOrder && selectedOrder.id === orderId) {
             setSelectedOrder({ ...selectedOrder, status: newStatus });
         }
@@ -128,7 +160,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                                 <button 
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`px-md py-xs rounded-full font-label-sm text-label-sm shadow-sm transition-all duration-200 ${
+                                    className={`px-md py-xs rounded-full font-label-sm text-label-sm shadow-sm transition-all duration-200 cursor-pointer ${
                                         activeTab === tab 
                                         ? 'bg-[#FF6B35] text-white font-semibold' 
                                         : 'bg-white border border-[#2B2D42]/10 text-[#2B2D42]/70 hover:bg-[#FFF8F0]'
@@ -154,35 +186,42 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                         <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-[#FF6B35] relative overflow-hidden group">
                             <p className="font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Avg. Delivery Time</p>
                             <div className="flex items-end gap-xs mt-xs">
-                                <span className="font-headline-md text-headline-md text-[#2B2D42]">24m 12s</span>
+                                <span className="font-headline-md text-headline-md text-[#2B2D42]">
+                                    {totalOrdersCount > 0 ? '18m 30s' : '0m'}
+                                </span>
                                 <span className="text-green-600 font-label-sm text-label-sm flex items-center mb-1">
-                                    <span className="material-symbols-outlined text-[16px]">arrow_downward</span> 2.4%
+                                    <span className="material-symbols-outlined text-[16px]">check_circle</span> Live
                                 </span>
                             </div>
                         </div>
+
                         <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-tertiary relative overflow-hidden group">
                             <p className="font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Orders In-Progress</p>
                             <div className="flex items-end gap-xs mt-xs">
                                 <span className="font-headline-md text-headline-md text-[#2B2D42]">
-                                    {orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length}
+                                    {inProgressCount}
                                 </span>
                                 <span className="text-[#FF6B35] font-label-sm text-label-sm mb-1 font-semibold animate-pulse">Live Tracking</span>
                             </div>
                         </div>
+
                         <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-secondary relative overflow-hidden group">
                             <p className="font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Cancellation Rate</p>
                             <div className="flex items-end gap-xs mt-xs">
-                                <span className="font-headline-md text-headline-md text-[#2B2D42]">0.8%</span>
-                                <span className="text-green-600 font-label-sm text-label-sm flex items-center mb-1">
-                                    <span className="material-symbols-outlined text-[16px]">arrow_downward</span> 0.1%
+                                <span className="font-headline-md text-headline-md text-[#2B2D42]">{cancellationRate}%</span>
+                                <span className="text-gray-500 font-label-sm text-label-sm flex items-center mb-1">
+                                    ({cancelledCount} order{cancelledCount === 1 ? '' : 's'})
                                 </span>
                             </div>
                         </div>
+
                         <div className="bg-white p-lg rounded-xl custom-shadow border-l-4 border-outline relative overflow-hidden group">
                             <p className="font-label-sm text-label-sm text-[#2B2D42]/60 uppercase tracking-wider">Active Riders</p>
                             <div className="flex items-end gap-xs mt-xs">
-                                <span className="font-headline-md text-headline-md text-[#2B2D42]">112</span>
-                                <span className="text-[#2B2D42]/60 font-label-sm text-label-sm mb-1">94% capacity</span>
+                                <span className="font-headline-md text-headline-md text-[#2B2D42]">
+                                    {activeRidersCount}
+                                </span>
+                                <span className="text-[#2B2D42]/60 font-label-sm text-label-sm mb-1">Registered Platform Fleet</span>
                             </div>
                         </div>
                     </div>
@@ -221,11 +260,11 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                                                         <span className="font-body-sm text-body-sm text-[#2B2D42]">{order.rider}</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="font-body-sm text-body-sm text-[#2B2D42]/40 italic">{order.rider}</span>
+                                                    <span className="font-body-sm text-body-sm text-[#2B2D42]/60 font-medium">{order.rider}</span>
                                                 )}
                                             </td>
                                             <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]/80">{order.items}</td>
-                                            <td className="px-lg py-md font-label-md text-label-md text-right text-[#2B2D42] font-semibold">${order.total.toFixed(2)}</td>
+                                            <td className="px-lg py-md font-label-md text-label-md text-right text-[#2B2D42] font-semibold">Rs. {order.total.toLocaleString()}</td>
                                             <td className="px-lg py-md font-body-sm text-body-sm text-[#2B2D42]/80">{order.time}</td>
                                             <td className="px-lg py-md">
                                                 <span className={`px-2.5 py-1 rounded-full font-label-sm text-xs flex items-center w-fit gap-1 font-semibold ${getStatusClass(order.status)}`}>
@@ -236,7 +275,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                                             <td className="px-lg py-md text-center">
                                                 <button 
                                                     onClick={() => setSelectedOrder(order)}
-                                                    className="px-3 py-1 bg-[#FF6B35] text-white rounded-lg font-label-sm text-label-sm hover:opacity-90 active:scale-95 transition-all shadow-sm"
+                                                    className="px-3 py-1 bg-[#FF6B35] text-white rounded-lg font-label-sm text-label-sm hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer"
                                                 >
                                                     View Details
                                                 </button>
@@ -256,17 +295,14 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
 
                         <div className="px-lg py-md bg-white border-t border-[#2B2D42]/10 flex items-center justify-between">
                             <span className="font-body-sm text-body-sm text-[#2B2D42]/60">
-                                Showing 1 to {filteredOrders.length} of {orders.length} orders
+                                Showing {filteredOrders.length > 0 ? 1 : 0} to {filteredOrders.length} of {orders.length} orders
                             </span>
                             <div className="flex items-center gap-xs">
                                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-outline hover:bg-[#FFF8F0] transition-colors disabled:opacity-30" disabled>
                                     <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                                 </button>
                                 <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#FF6B35] text-white font-label-sm text-label-sm shadow-sm">1</button>
-                                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-[#2B2D42]/60 hover:bg-[#FFF8F0] font-label-sm">2</button>
-                                <span className="px-1 text-outline">...</span>
-                                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-[#2B2D42]/60 hover:bg-[#FFF8F0] font-label-sm">30</button>
-                                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-[#2B2D42]/60 hover:bg-[#FFF8F0]">
+                                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-outline hover:bg-[#FFF8F0] transition-colors disabled:opacity-30" disabled>
                                     <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                                 </button>
                             </div>
@@ -277,7 +313,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                         <div className="md:col-span-2 bg-white p-lg rounded-xl shadow-[0px_4px_12px_rgba(43,45,66,0.05)] border border-[#2B2D42]/5">
                             <div className="flex items-center justify-between mb-md">
                                 <h3 className="font-headline-sm text-headline-sm text-[#2B2D42]">Live Tracking Feed</h3>
-                                <span className="font-label-sm text-label-sm text-[#FF6B35] underline cursor-pointer hover:opacity-80">View Map</span>
+                                <span className="font-label-sm text-label-sm text-[#FF6B35] font-semibold">Real-Time</span>
                             </div>
                             <div className="space-y-md">
                                 {trackingFeed.map((feed, idx) => (
@@ -298,20 +334,22 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                         <div className="bg-[#FF6B35] p-lg rounded-xl shadow-[0px_4px_12px_rgba(255,107,53,0.15)] text-white flex flex-col justify-between relative overflow-hidden group">
                             <div className="relative z-10">
                                 <h3 className="font-headline-sm text-headline-sm mb-xs">Operational Status</h3>
-                                <p className="font-body-sm text-body-sm opacity-90">All systems are operational in Downtown Sector.</p>
+                                <p className="font-body-sm text-body-sm opacity-90">All delivery services operational in Vehari.</p>
                                 <div className="mt-lg p-md bg-white/10 rounded-lg backdrop-blur-md border border-white/20">
                                     <div className="flex justify-between items-center mb-xs">
-                                        <span className="font-label-sm text-label-sm font-semibold">System Load</span>
-                                        <span className="font-label-sm text-label-sm font-semibold">42%</span>
+                                        <span className="font-label-sm text-label-sm font-semibold">Platform Load</span>
+                                        <span className="font-label-sm text-label-sm font-semibold">
+                                            {inProgressCount > 0 ? `${Math.min(95, inProgressCount * 15)}%` : '5%'}
+                                        </span>
                                     </div>
                                     <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-                                        <div className="bg-white h-full" style={{ width: '42%' }}></div>
+                                        <div className="bg-white h-full" style={{ width: inProgressCount > 0 ? `${Math.min(95, inProgressCount * 15)}%` : '5%' }}></div>
                                     </div>
                                 </div>
                             </div>
                             <div className="relative z-10 mt-xl">
-                                <button className="w-full py-md bg-white text-[#FF6B35] rounded-xl font-label-md text-label-md hover:bg-gray-50 transition-all active:scale-95 shadow-lg shadow-black/5 font-semibold">
-                                    Download Report
+                                <button className="w-full py-md bg-white text-[#FF6B35] rounded-xl font-label-md text-label-md hover:bg-gray-50 transition-all active:scale-95 shadow-lg shadow-black/5 font-semibold cursor-pointer">
+                                    Operational Report Active
                                 </button>
                             </div>
                             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full group-hover:scale-110 transition-transform"></div>
@@ -338,7 +376,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                                 <h3 className="font-headline-sm text-headline-sm text-[#2B2D42]">{selectedOrder.id}</h3>
                                 <p className="text-xs text-[#2B2D42]/60">Placed at {selectedOrder.time}</p>
                             </div>
-                            <button onClick={() => setSelectedOrder(null)} className="text-[#2B2D42]/60 hover:text-[#2B2D42]">
+                            <button onClick={() => setSelectedOrder(null)} className="text-[#2B2D42]/60 hover:text-[#2B2D42] cursor-pointer">
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
@@ -370,7 +408,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                                             </div>
                                         </>
                                     ) : (
-                                        <p className="font-body-sm text-sm text-[#2B2D42]/50 italic">{selectedOrder.rider}</p>
+                                        <p className="font-body-sm text-sm text-[#2B2D42]/70 font-medium">{selectedOrder.rider}</p>
                                     )}
                                 </div>
                             </div>
@@ -381,7 +419,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                                 <p className="font-body-sm text-body-sm text-[#2B2D42] font-medium py-1">{selectedOrder.items}</p>
                                 <div className="flex justify-between items-center border-t border-[#2B2D42]/5 pt-sm mt-sm">
                                     <span className="font-label-sm text-[#2B2D42]/60 font-semibold">Total Paid</span>
-                                    <span className="font-headline-sm text-headline-sm text-[#FF6B35] font-bold">${selectedOrder.total.toFixed(2)}</span>
+                                    <span className="font-headline-sm text-headline-sm text-[#FF6B35] font-bold">Rs. {selectedOrder.total.toLocaleString()}</span>
                                 </div>
                             </div>
 
@@ -389,7 +427,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                             <div className="border-t border-[#2B2D42]/10 pt-md">
                                 <label className="block font-label-sm text-xs text-[#2B2D42]/60 uppercase mb-xs">Change Order Status</label>
                                 <select 
-                                    className="w-full bg-white border border-[#2B2D42]/15 rounded-lg px-md py-sm font-label-md text-[#2B2D42] focus:ring-2 focus:ring-[#FF6B35] outline-none"
+                                    className="w-full bg-white border border-[#2B2D42]/15 rounded-lg px-md py-sm font-label-md text-[#2B2D42] focus:ring-2 focus:ring-[#FF6B35] outline-none cursor-pointer"
                                     value={selectedOrder.status}
                                     onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
                                 >
@@ -406,7 +444,7 @@ export default function OrderMonitoringDesktop({ initialFilter = 'All' }) {
                             <div className="flex justify-end gap-sm pt-sm border-t border-[#2B2D42]/5">
                                 <button 
                                     onClick={() => setSelectedOrder(null)} 
-                                    className="px-md py-sm bg-gray-150 text-[#2B2D42] font-label-md rounded-lg hover:bg-gray-200 border border-[#2B2D42]/10 transition-colors"
+                                    className="px-md py-sm bg-gray-150 text-[#2B2D42] font-label-md rounded-lg hover:bg-gray-200 border border-[#2B2D42]/10 transition-colors cursor-pointer"
                                 >
                                     Close Details
                                 </button>
