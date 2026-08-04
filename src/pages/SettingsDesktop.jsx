@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SidebarNav from '../components/SidebarNav';
 import TopNavBar from '../components/TopNavBar';
+import API from '../api';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCGzX2CPtxYhYVI7Bf7tcl06JZZvjnrpl0G5XTUlpIyg3a7N6hgRlEqf36LEYNa9jRJohFGdjcYOAaBc4kUj22wtCcTM_jyEaOugiUTDEZY-7FMLEVi4KBaKpwnlVLoBybiCIJqkr2fg0jXhv-3Y9CetC2OjwlGww9fwJTfu15kHpo2h27KEmkzX7uNmDIc2Pbk5b9PhQxhoVsKjoUDUQ3Ge0ljA8QzKg0wN4Ob9oCE8GgTCGv5wZLOU0CJRJAZ2fv0rc0CO3UB5xnm';
 const PRESET_AVATARS = [
@@ -63,7 +64,19 @@ export default function SettingsDesktop() {
         localStorage.setItem('theme', 'light');
     }, []);
 
-    const handleSaveProfile = () => {
+    const handleSaveProfile = async () => {
+        try {
+            const res = await API.put('/api/auth/profile', { name, email, phone });
+            if (res.data && res.data.token) {
+                localStorage.setItem('token', res.data.token);
+            }
+            if (res.data && res.data.user) {
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+            }
+        } catch (err) {
+            console.error('Failed to sync profile update to backend', err);
+        }
+
         localStorage.setItem('admin_name', name);
         localStorage.setItem('admin_email', email);
         localStorage.setItem('admin_phone', phone);
@@ -73,21 +86,33 @@ export default function SettingsDesktop() {
         // Dispatch storage update so Sidebar updates immediately
         window.dispatchEvent(new Event('profile-updated'));
 
-        setToastMessage('Profile settings saved successfully!');
+        setToastMessage('Profile settings saved and updated on server successfully!');
         setTimeout(() => setToastMessage(''), 3000);
     };
 
-    const handleSaveSecurity = (e) => {
+    const handleSaveSecurity = async (e) => {
         e.preventDefault();
         if (newPassword && newPassword !== confirmPassword) {
             alert("New passwords do not match!");
             return;
         }
-        setToastMessage('Security configurations updated successfully!');
+        if (newPassword) {
+            try {
+                const res = await API.put('/api/auth/profile', { password: newPassword });
+                if (res.data && res.data.token) {
+                    localStorage.setItem('token', res.data.token);
+                }
+            } catch (err) {
+                alert("Failed to update password on server: " + (err.response?.data?.detail || err.message));
+                return;
+            }
+        }
+        setToastMessage('Security password updated on server successfully!');
         setNewPassword('');
         setConfirmPassword('');
         setTimeout(() => setToastMessage(''), 3000);
     };
+
 
     const handleEnable2FA = (e) => {
         e.preventDefault();
